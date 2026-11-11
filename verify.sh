@@ -24,6 +24,10 @@ max=$(printf "%s\n" \
   ${#JAVA[@]} \
   | sort -nr | head -1)
 
+workspace=$(mktemp -d)
+trap 'rm -rf "$workspace"' EXIT
+printf '18\n' > "$workspace/.nvmrc"
+
 for ((i=max-1; i>=0; i--)); do
   CODEX_ENV_PYTHON_VERSION=${PYTHON[i]:-${PYTHON[0]}} \
   CODEX_ENV_NODE_VERSION=${NODE[i]:-${NODE[0]}} \
@@ -34,11 +38,16 @@ for ((i=max-1; i>=0; i--)); do
   CODEX_ENV_PHP_VERSION=${PHP[i]:-${PHP[0]}} \
   CODEX_ENV_JAVA_VERSION=${JAVA[i]:-${JAVA[0]}} \
   bash -lc '
+    cd "$1"
     printf "\n\nTesting setup_universal with versions:\n"
     env | grep "^CODEX_ENV_" | sort
     printf "\n"
     /opt/codex/setup_universal.sh
-  '
+  ' _ "$workspace"
+  if [ "$(cat "$workspace/.nvmrc")" != 18 ]; then
+    echo "setup_universal.sh modified the workspace .nvmrc" >&2
+    exit 1
+  fi
 done
 
 echo "- Python:"
